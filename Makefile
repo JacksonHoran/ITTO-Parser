@@ -15,13 +15,19 @@ TCP_SEND := $(BIN_DIR)/tcp_send
 
 all: $(PARSER) $(TCP_SEND)
 
-$(PARSER): $(SRC_DIR)/parser.c
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+$(OUT_DIR):
+	mkdir -p $(OUT_DIR)
+
+$(PARSER): $(SRC_DIR)/parser.c | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
-$(TCP_SEND): $(TOOLS_DIR)/tcp_send.c
+$(TCP_SEND): $(TOOLS_DIR)/tcp_send.c | $(BIN_DIR)
 	$(CC) $(CFLAGS) $< -o $@
 
-run: all
+run: all | $(OUT_DIR)
 	@set -e
 	$(PARSER) 9000 $(OUT_DIR)/parsed.jsonl &
 	PID=$$!
