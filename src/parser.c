@@ -63,6 +63,19 @@ static void json_write_string(FILE *out, const char *data, size_t len, int trim_
     }
 }
 
+static void json_write_price(FILE *out, uint32_t price) {
+    uint64_t int_part = price / 10000;
+    uint32_t frac = price % 10000;
+    if (frac == 0) {
+        fprintf(out, "%llu", (unsigned long long)int_part);
+        return;
+    }
+    int width = 4;
+    while (frac % 10 == 0) { frac /= 10; width--; }
+    /* print fractional part with leading zeros trimmed on the right */
+    fprintf(out, "%llu.%0*u", (unsigned long long)int_part, width, (unsigned)frac);
+}
+
 static size_t message_length(unsigned char type) {
     switch (type) {
         case 'A': return 36;
@@ -100,8 +113,10 @@ static void write_message_A(FILE *out, const unsigned char *msg) {
     fputs("\",\"shares\":", out);
     fprintf(out, "%" PRIu32 ",\"stock\":\"", shares);
     json_write_string(out, stock, 8, 1);
-    fprintf(out, "\",\"price\":%" PRIu32 "}\n", price);
-}
+    fputs("\",\"price\":", out);
+    json_write_price(out, price);
+    fputs("}\n", out);
+} 
 
 static void write_message_F(FILE *out, const unsigned char *msg) {
     uint16_t stock_locate = read_u16_be(msg + 1);
@@ -124,10 +139,11 @@ static void write_message_F(FILE *out, const unsigned char *msg) {
     fprintf(out, "%" PRIu32 ",\"stock\":\"", shares);
     json_write_string(out, stock, 8, 1);
     fputs("\",\"price\":", out);
-    fprintf(out, "%" PRIu32 ",\"attribution\":\"", price);
+    json_write_price(out, price);
+    fputs(",\"attribution\":\"", out);
     json_write_string(out, attribution, 4, 1);
     fputs("\"}\n", out);
-}
+} 
 
 static void write_message_E(FILE *out, const unsigned char *msg) {
     uint16_t stock_locate = read_u16_be(msg + 1);
@@ -161,8 +177,10 @@ static void write_message_C(FILE *out, const unsigned char *msg) {
             ",\"printable\":\"",
             stock_locate, tracking, timestamp, order_ref, executed_shares, match_number);
     json_write_string(out, printable, 1, 0);
-    fprintf(out, "\",\"price\":%" PRIu32 "}\n", price);
-}
+    fputs("\",\"price\":", out);
+    json_write_price(out, price);
+    fputs("}\n", out);
+} 
 
 static void write_message_X(FILE *out, const unsigned char *msg) {
     uint16_t stock_locate = read_u16_be(msg + 1);
@@ -202,10 +220,12 @@ static void write_message_U(FILE *out, const unsigned char *msg) {
     fprintf(out,
             "{\"type\":\"U\",\"stock_locate\":%u,\"tracking_number\":%u"
             ",\"timestamp\":%" PRIu64 ",\"original_ref\":%" PRIu64
-            ",\"new_ref\":%" PRIu64 ",\"shares\":%" PRIu32
-            ",\"price\":%" PRIu32 "}\n",
-            stock_locate, tracking, timestamp, original_ref, new_ref, shares, price);
-}
+            ",\"new_ref\":%" PRIu64 ",\"shares\":%" PRIu32,
+            stock_locate, tracking, timestamp, original_ref, new_ref, shares);
+    fputs(",\"price\":", out);
+    json_write_price(out, price);
+    fputs("}\n", out);
+} 
 
 static void write_message_P(FILE *out, const unsigned char *msg) {
     uint16_t stock_locate = read_u16_be(msg + 1);
@@ -227,9 +247,10 @@ static void write_message_P(FILE *out, const unsigned char *msg) {
     fputs("\",\"shares\":", out);
     fprintf(out, "%" PRIu32 ",\"stock\":\"", shares);
     json_write_string(out, stock, 8, 1);
-    fprintf(out, "\",\"price\":%" PRIu32 ",\"match_number\":%" PRIu64 "}\n",
-            price, match_number);
-}
+    fputs("\",\"price\":", out);
+    json_write_price(out, price);
+    fprintf(out, ",\"match_number\":%" PRIu64 "}\n", match_number);
+} 
 
 static void write_message_Q(FILE *out, const unsigned char *msg) {
     uint16_t stock_locate = read_u16_be(msg + 1);
@@ -246,9 +267,9 @@ static void write_message_Q(FILE *out, const unsigned char *msg) {
             ",\"timestamp\":%" PRIu64 ",\"shares\":%" PRIu64 ",\"stock\":\"",
             stock_locate, tracking, timestamp, shares);
     json_write_string(out, stock, 8, 1);
-    fprintf(out, "\",\"cross_price\":%" PRIu32 ",\"match_number\":%" PRIu64
-            ",\"cross_type\":\"",
-            cross_price, match_number);
+    fputs("\",\"cross_price\":", out);
+    json_write_price(out, cross_price);
+    fprintf(out, ",\"match_number\":%" PRIu64 ",\"cross_type\":\"", match_number);
     json_write_string(out, cross_type, 1, 0);
     fputs("\"}\n", out);
 }
@@ -275,9 +296,13 @@ static void write_message_I(FILE *out, const unsigned char *msg) {
     json_write_string(out, imbalance_direction, 1, 0);
     fputs("\",\"stock\":\"", out);
     json_write_string(out, stock, 8, 1);
-    fprintf(out, "\",\"far_price\":%" PRIu32 ",\"near_price\":%" PRIu32
-            ",\"current_ref_price\":%" PRIu32 ",\"cross_type\":\"",
-            far_price, near_price, current_ref_price);
+    fputs("\",\"far_price\":", out);
+    json_write_price(out, far_price);
+    fputs(",\"near_price\":", out);
+    json_write_price(out, near_price);
+    fputs(",\"current_ref_price\":", out);
+    json_write_price(out, current_ref_price);
+    fputs(",\"cross_type\":\"", out);
     json_write_string(out, cross_type, 1, 0);
     fputs("\",\"price_variation_indicator\":\"", out);
     json_write_string(out, price_variation_indicator, 1, 0);
